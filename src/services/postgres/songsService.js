@@ -16,7 +16,7 @@ class SongsService {
   }
 
   async addSong({ title, year, performer, genre, duration, albumId }) {
-    const id = nanoid(16);
+    const id = `song-${nanoid(16)}`;
     const query = {
       text: 'INSERT INTO songs VALUES($1, $2, $3, $4, $5, $6, $7) RETURNING id',
       values: [
@@ -94,6 +94,17 @@ class SongsService {
 
     if (!result.rows.length) {
       throw new NotFoundError('Lagu gagal dihapus. Id tidak ditemukan');
+    }
+  }
+
+  async verifySongExistency(songId) {
+    const query = {
+      text: 'SELECT * FROM songs WHERE id = $1',
+      values: [songId],
+    };
+    const result = await this._pool.query(query);
+    if (!result.rows.length) {
+      throw new NotFoundError('Lagu tidak ditemukan');
     }
   }
 }
