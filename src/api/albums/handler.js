@@ -1,11 +1,12 @@
+const autoBind = require('auto-bind');
+
 class AlbumsHandler {
-  constructor(service, validator) {
+  constructor(service, storageService, validator, storageValidator) {
     this._service = service;
+    this._storageService = storageService;
     this._validator = validator;
-    this.postAlbumHandler = this.postAlbumHandler.bind(this);
-    this.getAlbumByIdHandler = this.getAlbumByIdHandler.bind(this);
-    this.putAlbumByIdHandler = this.putAlbumByIdHandler.bind(this);
-    this.deleteAlbumByIdHandler = this.deleteAlbumByIdHandler.bind(this);
+    this._storageValidator = storageValidator;
+    autoBind(this);
   }
 
   async postAlbumHandler(request, h) {
@@ -56,6 +57,64 @@ class AlbumsHandler {
       status: 'success',
       message: 'Album berhasil dihapus',
     });
+    response.code(200);
+    return response;
+  }
+
+  async postUploadCoverAlbumHandler(request, h) {
+    const { cover } = request.payload;
+    this._storageValidator.validateImageHeaders(cover.hapi.headers);
+    const { id } = request.params;
+
+    const filename = await this._storageService.writeFile(cover, cover.hapi);
+    const coverUrl = this._service.constructCoverUrl(filename);
+
+    await this._service.putAlbumCover(id, coverUrl);
+
+    const response = h.response({
+      status: 'success',
+      message: 'Sampul berhasil diunggah',
+    });
+    response.code(201);
+    return response;
+  }
+
+  async postLikesAlbums(request, h) {
+    const { id: credentialId } = request.auth.credentials;
+    const { id } = request.params;
+
+    await this._service.verifyAlbumExistency(id);
+
+    let message = '';
+    if (await this._service.isAlbumLiked(id, credentialId)) {
+      await this._service.dislikesAlbum(id, credentialId);
+      message = 'Berhasil dislike album';
+    } else {
+      await this._service.likesAlbum(id, credentialId);
+      message = 'Berhasil menyukai album';
+    }
+
+    const response = h.response({
+      status: 'success',
+      message,
+    });
+    response.code(201);
+    return response;
+  }
+
+  async getTotalAlbumLikes(request, h) {
+    const { id } = request.params;
+
+    await this._service.verifyAlbumExistency(id);
+    const likes = await this._service.countAlbumLikes(id);
+
+    const response = h.response({
+      status: 'success',
+      data: likes.data,
+    });
+    if (likes.isDataFromCache) {
+      response.header('X-Data-Source', 'cache');
+    }
     response.code(200);
     return response;
   }

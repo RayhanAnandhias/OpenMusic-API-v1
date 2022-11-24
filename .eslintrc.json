@@ -18,6 +18,7 @@
         "operator-linebreak": "off",
         "no-shadow": "off",
         "quotes": "off",
-        "implicit-arrow-linebreak": "off"
+        "implicit-arrow-linebreak": "off",
+        "class-methods-use-this": "off"
     }
 }
